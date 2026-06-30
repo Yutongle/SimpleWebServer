@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 禁止访问 — SimpleWebServer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .error-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 60px 80px;
+            text-align: center;
+            max-width: 550px;
+            width: 90%;
+        }
+        .error-code {
+            font-size: 120px;
+            font-weight: 700;
+            color: #e74c3c;
+            line-height: 1;
+            margin-bottom: 10px;
+            text-shadow: 3px 3px 0 #fadbd8;
+        }
+        .error-text {
+            font-size: 24px;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .error-description {
+            font-size: 15px;
+            color: #888;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .error-detail {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #e74c3c;
+            text-align: left;
+            line-height: 1.6;
+        }
+        .home-link {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+        .home-link:hover { background: #2980b9; }
+        .server-footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #bbb;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-code">403</div>
+        <div class="error-text">禁止访问</div>
+        <div class="error-description">
+            您没有权限访问此资源。服务器拒绝了您的访问请求。
+        </div>
+        <div class="error-detail">
+            <strong>🔒 可能的原因：</strong><br>
+            • 您需要登录后才能访问此页面<br>
+            • 该目录禁止直接访问<br>
+            • 请求被安全策略拦截（如路径遍历攻击检测）
+        </div>
+        <a href="/" class="home-link">🏠 返回首页</a>
+        <div class="server-footer">SimpleWebServer/1.0</div>
+    </div>
+</body>
+</html>
