@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户登录 — SimpleWebServer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 50px 60px;
+            max-width: 420px;
+            width: 95%;
+            text-align: center;
+        }
+
+        /* ====== 状态切换 ====== */
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        /* ====== 登录表单 ====== */
+        .login-header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+        .login-header h1 {
+            font-size: 28px; color: #667eea;
+            margin-bottom: 8px;
+        }
+        .login-header p { color: #999; font-size: 14px; }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block; margin-bottom: 6px;
+            color: #555; font-size: 14px; font-weight: 500;
+            text-align: left;
+        }
+        .form-group input {
+            width: 100%; padding: 12px 15px;
+            border: 2px solid #e0e0e0; border-radius: 8px;
+            font-size: 15px; transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        .form-group input:focus {
+            outline: none; border-color: #667eea;
+        }
+
+        .error-message {
+            background: #f8d7da; color: #721c24;
+            padding: 12px 15px; border-radius: 8px;
+            margin-bottom: 20px; font-size: 14px;
+            display: none; text-align: center;
+        }
+        .error-message.show { display: block; }
+
+        .success-message {
+            background: #d4edda; color: #155724;
+            padding: 12px 15px; border-radius: 8px;
+            margin-bottom: 20px; font-size: 14px;
+            display: none; text-align: center;
+        }
+        .success-message.show { display: block; }
+
+        .btn {
+            display: block; width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 15px; font-weight: 600;
+            cursor: pointer; text-decoration: none;
+            transition: all 0.2s;
+            border: none; font-family: inherit;
+            text-align: center;
+        }
+        .btn-primary {
+            background: #667eea; color: #fff;
+        }
+        .btn-primary:hover { background: #5a6fd6; }
+        .btn-warning {
+            background: #f39c12; color: #fff;
+        }
+        .btn-warning:hover { background: #e67e22; }
+        .btn-danger {
+            background: #fff; color: #e74c3c;
+            border: 1px solid #fce4e4 !important;
+            font-size: 13px !important;
+        }
+        .btn-danger:hover { background: #fef5f5; }
+        .btn-outline {
+            background: #fff; color: #888;
+            border: 1px solid #ddd !important;
+            font-size: 13px !important;
+        }
+        .btn-outline:hover { background: #f5f5f5; color: #555; }
+
+        .test-accounts {
+            margin-top: 30px; padding: 15px;
+            background: #f8f9fa; border-radius: 8px;
+            font-size: 13px; color: #888; text-align: center;
+        }
+        .test-accounts strong { color: #555; }
+        .test-accounts code {
+            background: #e9ecef; padding: 2px 6px;
+            border-radius: 3px; font-size: 12px;
+        }
+        .home-link {
+            display: block; text-align: center;
+            margin-top: 20px; color: #999;
+            text-decoration: none; font-size: 14px;
+        }
+        .home-link:hover { color: #667eea; }
+
+        /* ====== 账户管理面板 ====== */
+        .account-header {
+            text-align: center; margin-bottom: 30px;
+        }
+        .account-header .avatar {
+            width: 72px; height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            font-size: 32px; font-weight: 700;
+            display: inline-flex;
+            align-items: center; justify-content: center;
+            margin-bottom: 14px;
+        }
+        .account-header h1 {
+            font-size: 22px; color: #333;
+            margin-bottom: 4px;
+        }
+        .account-header .username {
+            font-size: 16px; color: #667eea; font-weight: 600;
+        }
+        .account-header .status {
+            font-size: 13px; color: #27ae60;
+            margin-top: 4px;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .account-header .status .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%; background: #27ae60;
+        }
+
+        .info-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px;
+            background: #f8f9fa; border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .info-row .label { color: #888; }
+        .info-row .value {
+            color: #333; font-weight: 600;
+            font-family: "Consolas", "Courier New", monospace;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .divider {
+            margin: 20px 0;
+            border: none; border-top: 1px solid #eee;
+        }
+        .section-title {
+            font-size: 13px; color: #aaa;
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 14px; font-weight: 600;
+        }
+        .action-group {
+            display: flex; flex-direction: column; gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+
+        <!-- ================================ -->
+        <!-- 面板一：登录表单（未登录）          -->
+        <!-- ================================ -->
+        <div class="panel active" id="loginPanel">
+            <div class="login-header">
+                <h1>🔐 用户登录</h1>
+                <p>SimpleWebServer 身份验证</p>
+            </div>
+
+            <div class="error-message" id="loginError">
+                用户名或密码错误，请重试。
+            </div>
+
+            <form method="POST" action="/login" id="loginForm">
+                <input type="hidden" name="next" id="nextUrl" value="/admin/">
+
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username"
+                           placeholder="请输入用户名" required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password"
+                           placeholder="请输入密码" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn btn-primary">登 录</button>
+            </form>
+
+            <div class="test-accounts">
+                <strong>测试账户：</strong><br>
+                <code>admin</code> / <code>admin123</code> &nbsp;|&nbsp;
+                <code>user</code> / <code>user123</code>
+            </div>
+        </div>
+
+        <!-- ================================ -->
+        <!-- 面板二：账户管理（已登录）          -->
+        <!-- ================================ -->
+        <div class="panel" id="accountPanel">
+            <div class="account-header">
+                <div class="avatar" id="avatarLetter">A</div>
+                <h1>账户管理</h1>
+                <div class="username" id="accountUsername">admin</div>
+                <div class="status">
+                    <span class="dot"></span> 已登录 · 会话有效
+                </div>
+            </div>
+
+            <!-- 账户信息 -->
+            <div class="section-title">账户信息</div>
+            <div class="info-row">
+                <span class="label">用户名</span>
+                <span class="value" id="infoUsername">admin</span>
+            </div>
+            <div class="info-row">
+                <span class="label">密码</span>
+                <span class="value" id="infoPassword" style="color:#e74c3c;">加载中...</span>
+            </div>
+
+            <hr class="divider">
+
+            <!-- 修改密码 -->
+            <div class="error-message" id="changePwdError"></div>
+            <div class="success-message" id="changePwdSuccess"></div>
+
+            <div class="section-title">修改密码</div>
+            <div class="form-group">
+                <label for="oldPwd">原密码</label>
+                <input type="password" id="oldPwd" placeholder="请输入原密码">
+            </div>
+            <div class="form-group">
+                <label for="newPwd">新密码</label>
+                <input type="password" id="newPwd" placeholder="请输入新密码">
+            </div>
+            <button class="btn btn-warning" id="changePwdBtn">修改密码</button>
+
+            <hr class="divider">
+
+            <!-- 操作按钮 -->
+            <div class="section-title">操作</div>
+            <div class="action-group">
+                <a href="/admin/" class="btn btn-primary">⚙️ 进入管理面板</a>
+                <button class="btn btn-outline" id="switchAccountBtn">🔄 切换账户</button>
+                <a href="/logout" class="btn btn-danger">🚪 退出登录</a>
+            </div>
+        </div>
+
+        <a href="/" class="home-link">← 返回首页</a>
+    </div>
+
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            // cookie 是 HttpOnly 的，JS 读不到，改为用 URL 参数 ?user=xxx 判断
+            var currentUser = params.get('user');
+
+            var loginPanel = document.getElementById('loginPanel');
+            var accountPanel = document.getElementById('accountPanel');
+
+            // ====== 初始化 ======
+
+            // 错误提示
+            if (params.get('error') === '1') {
+                document.getElementById('loginError').classList.add('show');
+            }
+
+            // 设置登录后跳转目标
+            var nextUrl = params.get('next');
+            if (nextUrl) {
+                document.getElementById('nextUrl').value = nextUrl;
+            }
+
+            // URL 有 ?user=xxx → 已登录，显示账户管理面板
+            if (currentUser) {
+                initAccountPanel();
+            }
+
+            // ====== 账户管理面板 ======
+            function initAccountPanel() {
+                loadAccountInfo();
+
+                loginPanel.classList.remove('active');
+                accountPanel.classList.add('active');
+
+                // 修改密码
+                document.getElementById('changePwdBtn').addEventListener('click', function() {
+                    var oldPwd = document.getElementById('oldPwd').value;
+                    var newPwd = document.getElementById('newPwd').value;
+                    var errEl = document.getElementById('changePwdError');
+                    var okEl  = document.getElementById('changePwdSuccess');
+
+                    errEl.classList.remove('show');
+                    okEl.classList.remove('show');
+
+                    if (!oldPwd || !newPwd) {
+                        errEl.textContent = '密码不能为空';
+                        errEl.classList.add('show');
+                        return;
+                    }
+
+                    sendAccountAction('change_password', {
+                        old_password: oldPwd,
+                        new_password: newPwd
+                    }, function(resp) {
+                        if (resp.ok) {
+                            okEl.textContent = '密码修改成功';
+                            okEl.classList.add('show');
+                            document.getElementById('oldPwd').value = '';
+                            document.getElementById('newPwd').value = '';
+                            document.getElementById('infoPassword').textContent = newPwd;
+                        } else {
+                            errEl.textContent = resp.error || '修改失败';
+                            errEl.classList.add('show');
+                        }
+                    });
+                });
+
+                // 切换账户：跳转 /logout 让服务端销毁 HttpOnly cookie
+                document.getElementById('switchAccountBtn').addEventListener('click', function() {
+                    window.location.href = '/logout';
+                });
+            }
+
+            function loadAccountInfo() {
+                sendAccountAction('get_info', {}, function(resp) {
+                    if (resp.ok) {
+                        document.getElementById('accountUsername').textContent = resp.username;
+                        document.getElementById('infoUsername').textContent = resp.username;
+                        document.getElementById('avatarLetter').textContent = resp.username.charAt(0).toUpperCase();
+                        document.getElementById('infoPassword').textContent = resp.password || '(空)';
+                    } else {
+                        document.getElementById('infoPassword').textContent = '加载失败';
+                    }
+                });
+            }
+
+            function sendAccountAction(action, data, callback) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/account', true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.onload = function() {
+                    try {
+                        var resp = JSON.parse(xhr.responseText);
+                        callback(resp);
+                    } catch (e) {
+                        callback({ ok: false, error: '服务器响应异常' });
+                    }
+                };
+                xhr.onerror = function() {
+                    callback({ ok: false, error: '网络错误' });
+                };
+
+                var bodyParts = ['action=' + encodeURIComponent(action)];
+                for (var k in data) {
+                    bodyParts.push(encodeURIComponent(k) + '=' + encodeURIComponent(data[k]));
+                }
+                xhr.send(bodyParts.join('&'));
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理面板 — SimpleWebServer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+        .admin-header {
+            background: rgba(0,0,0,0.3);
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .admin-header h1 {
+            font-size: 22px;
+            color: #f39c12;
+        }
+        .admin-header .user-info {
+            font-size: 14px;
+            color: #aaa;
+        }
+        .admin-header a {
+            color: #e74c3c;
+            text-decoration: none;
+            margin-left: 15px;
+        }
+        .admin-content {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .card h2 {
+            font-size: 18px;
+            color: #f39c12;
+            margin-bottom: 15px;
+        }
+        .card p, .card li {
+            color: #aaa;
+            line-height: 1.8;
+            font-size: 14px;
+        }
+        .card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        .card ul li:before {
+            content: "▸ ";
+            color: #f39c12;
+        }
+        .back-link {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <h1>⚙️ 管理面板</h1>
+        <div class="user-info">
+            已认证用户 | <a href="/logout">退出登录</a>
+        </div>
+    </div>
+    <div class="admin-content">
+        <div class="card">
+            <h2>📊 服务器状态</h2>
+            <ul>
+                <li>服务器状态: 运行中</li>
+                <li>HTTP 版本: HTTP/1.1</li>
+                <li>认证模式: Session 表单登录</li>
+                <li>并发模式: 多线程 (ThreadPoolExecutor)</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h2>🔒 安全信息</h2>
+            <ul>
+                <li>路径遍历防护: 已启用</li>
+                <li>请求大小限制: 已启用</li>
+                <li>Session 签名: HMAC-SHA256</li>
+                <li>Cookie HttpOnly: 已启用</li>
+                <li>安全头部: X-Content-Type-Options: nosniff</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h2>📁 管理功能</h2>
+            <p>此处为受保护区域示例。在实际部署中，可以在此添加：</p>
+            <ul>
+                <li>服务器配置修改</li>
+                <li>用户管理</li>
+                <li>文件浏览与管理</li>
+                <li>日志查看</li>
+                <li>服务器统计信息</li>
+            </ul>
+        </div>
+        <a href="/" class="back-link">← 返回首页</a>
+    </div>
+</body>
+</html>
