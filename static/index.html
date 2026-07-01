@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleWebServer — 首页</title>
+    <style>
+        :root {
+            --sidebar-width: 240px;
+            --primary: #667eea;
+            --primary-dark: #5a6fd6;
+            --accent: #f39c12;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: rgba(255,255,255,0.08);
+            --card-border: rgba(255,255,255,0.12);
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0b8;
+            --sidebar-bg: rgba(20, 20, 50, 0.85);
+            --hover-bg: rgba(255,255,255,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ====== 侧边栏 ====== */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+
+        .sidebar-logo {
+            padding: 28px 24px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .sidebar-logo .icon {
+            font-size: 28px;
+            margin-bottom: 4px;
+        }
+        .sidebar-logo .name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.3px;
+        }
+        .sidebar-logo .version {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 12px 12px;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 16px;
+            border-radius: 10px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .sidebar-nav a:hover {
+            background: var(--hover-bg);
+            color: #fff;
+        }
+        .sidebar-nav a.active {
+            background: rgba(102, 126, 234, 0.25);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.3);
+        }
+        .sidebar-nav a.active::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 10px;
+            bottom: 10px;
+            width: 4px;
+            border-radius: 0 4px 4px 0;
+            background: var(--primary);
+        }
+        .sidebar-nav .nav-icon {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 16px 24px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        .sidebar-footer .dot {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #27ae60;
+            margin-right: 6px;
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.5); }
+            50%      { box-shadow: 0 0 0 8px rgba(39, 174, 96, 0); }
+        }
+
+        /* ====== 主内容区 ====== */
+        .main {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 48px 56px 40px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部标题区 */
+        .hero {
+            margin-bottom: 36px;
+        }
+        .hero h1 {
+            font-size: 34px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+        }
+        .hero .subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .hero .subtitle .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(39, 174, 96, 0.2);
+            color: #6fcf97;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .hero .subtitle .badge .live-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #6fcf97;
+            animation: pulse-dot 2s infinite;
+        }
+
+        /* 特性卡片网格 */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 36px;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 24px 26px;
+            transition: all 0.25s;
+            cursor: default;
+        }
+        .feature-card:hover {
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+        .feature-card .fc-icon {
+            font-size: 26px;
+            margin-bottom: 10px;
+        }
+        .feature-card .fc-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .feature-card .fc-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* 快速入口区 */
+        .quick-section {
+            margin-top: auto;
+            padding-top: 20px;
+        }
+        .quick-section .qs-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 14px;
+            font-weight: 600;
+        }
+        .quick-links {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .quick-links a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 22px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .ql-upload {
+            background: rgba(102, 126, 234, 0.25);
+            color: #a8b4ff;
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+        .ql-upload:hover {
+            background: rgba(102, 126, 234, 0.4);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+        }
+        .ql-admin {
+            background: rgba(243, 156, 18, 0.2);
+            color: #f5c554;
+            border-color: rgba(243, 156, 18, 0.3);
+        }
+        .ql-admin:hover {
+            background: rgba(243, 156, 18, 0.35);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(243, 156, 18, 0.2);
+        }
+        .ql-login {
+            background: rgba(255,255,255,0.06);
+            color: #ccc;
+            border-color: rgba(255,255,255,0.1);
+        }
+        .ql-login:hover {
+            background: rgba(255,255,255,0.14);
+            color: #fff;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main {
+                margin-left: 0;
+                padding: 32px 20px;
+            }
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+            .hero h1 {
+                font-size: 26px;
+            }
+        }
+
+        /* 移动端菜单按钮 */
+        .menu-btn {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 200;
+            background: var(--sidebar-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #fff;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 20px;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        @media (max-width: 768px) {
+            .menu-btn { display: flex; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 移动端菜单按钮 -->
+    <button class="menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="菜单">☰</button>
+
+    <!-- ====== 侧边栏 ====== -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="icon">🚀</div>
+            <div class="name">SimpleWebServer</div>
+            <div class="version">v1.0 · HTTP/1.1</div>
+        </div>
+
+        <ul class="sidebar-nav">
+            <li><a href="/" class="active">
+                <span class="nav-icon">🏠</span> 首页
+            </a></li>
+            <li><a href="/upload">
+                <span class="nav-icon">📤</span> 文件上传
+            </a></li>
+            <li><a href="/admin/">
+                <span class="nav-icon">⚙️</span> 管理面板
+            </a></li>
+            <li><a href="/login">
+                <span class="nav-icon">🔑</span> 用户登录
+            </a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <span class="dot"></span> 服务器运行中
+        </div>
+    </aside>
+
+    <!-- ====== 主内容区 ====== -->
+    <main class="main">
+
+        <!-- 标题 -->
+        <div class="hero">
+            <h1>SimpleWebServer</h1>
+            <div class="subtitle">
+                <span>基于 Python 的轻量级 HTTP 服务器</span>
+                <span class="badge">
+                    <span class="live-dot"></span> 运行中
+                </span>
+            </div>
+        </div>
+
+        <!-- 特性卡片 -->
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="fc-icon">⚡</div>
+                <div class="fc-title">多线程并发</div>
+                <div class="fc-desc">基于 ThreadPoolExecutor，轻松应对并发请求，线程安全设计</div>
+            </div>
+            <div class="feature-card">
+                <div class="fc-icon">🛡️</div>
+                <div class="fc-title">安全防护</div>
+                <div class="fc-desc">路径遍历防御、Session 签名、请求大小限制、安全响应头</div>
+            </div>
+            <div class="feature-card">
+                <div class="fc-icon">📁</div>
+                <div class="fc-title">文件服务</div>
+                <div class="fc-desc">静态文件托管 + 文件上传，自动 MIME 识别</div>
+            </div>
+            <div class="feature-card">
+                <div class="fc-icon">📋</div>
+                <div class="fc-title">完整日志</div>
+                <div class="fc-desc">Common Log Format 访问日志，支持自定义日志文件</div>
+            </div>
+        </div>
+
+        <!-- 快速入口 -->
+        <div class="quick-section">
+            <div class="qs-label">快速入口</div>
+            <div class="quick-links">
+                <a href="/admin/"   class="ql-admin"> ⚙️ 管理面板</a>
+                <a href="/upload"   class="ql-upload">📤 上传文件</a>
+                <a href="/login"    class="ql-login"> 🔑 登录</a>
+            </div>
+        </div>
+
+    </main>
+
+</body>
+</html>

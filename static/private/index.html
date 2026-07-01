@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>私密区域 — SimpleWebServer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 50px;
+            max-width: 500px;
+            width: 95%;
+            text-align: center;
+        }
+        .lock-icon { font-size: 48px; margin-bottom: 20px; }
+        h1 { color: #333; margin-bottom: 15px; }
+        p { color: #888; margin-bottom: 25px; line-height: 1.6; }
+        a { color: #3498db; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="lock-icon">🔒</div>
+        <h1>私密区域</h1>
+        <p>此页面为受保护资源。您已成功通过验证，可以访问此私密内容。</p>
+        <p>这是 SimpleWebServer 认证功能的演示页面。</p>
+        <a href="/">← 返回首页</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录成功 — SimpleWebServer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .welcome-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 50px 60px;
+            max-width: 500px;
+            width: 95%;
+            text-align: center;
+        }
+        .success-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 28px;
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .info-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: left;
+            font-size: 14px;
+            color: #888;
+            line-height: 1.8;
+        }
+        .links {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .links a {
+            display: inline-block;
+            padding: 10px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a6fd6; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-danger:hover { background: #c0392b; }
+    </style>
+</head>
+<body>
+    <div class="welcome-container">
+        <div class="success-icon">✅</div>
+        <h1>登录成功！</h1>
+        <p>欢迎使用 SimpleWebServer。您已成功通过身份验证。</p>
+
+        <div class="info-box">
+            <strong>📋 Session 信息：</strong><br>
+            • Session 有效期: 1 小时<br>
+            • Cookie 类型: HttpOnly (JavaScript 不可访问)<br>
+            • 安全措施: HMAC-SHA256 签名防篡改<br>
+            • 登出: 访问 <a href="/logout">/logout</a> 或关闭浏览器
+        </div>
+
+        <div class="links">
+            <a href="/" class="btn-primary">🏠 返回首页</a>
+            <a href="/logout" class="btn-danger">🚪 退出登录</a>
+        </div>
+    </div>
+</body>
+</html>
