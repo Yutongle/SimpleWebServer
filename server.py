@@ -45,8 +45,10 @@ import argparse
 import json
 import os
 import socket
+import subprocess
 import sys
 import threading
+import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
@@ -72,7 +74,7 @@ from logger import AccessLogger
 
 DEFAULT_CONFIG = {
     "server": {
-        "host": "0.0.0.0",
+        "host": "127.0.0.1",
         "port": 8080,
         "document_root": "./static",
         "upload_dir": "./uploads",
@@ -228,10 +230,9 @@ class SimpleWebServer:
                 self._authenticator = BasicAuthAuthenticator(users)
                 self._logger.log_info("认证模块已启用: HTTP Basic Authentication")
             elif auth_type == "session":
-                import time as _time
                 secret_key = auth_config.get("secret_key", "change-me")
                 # 每次启动拼接时间戳，确保重启后旧 session 全部失效
-                secret_key = f"{secret_key}:{int(_time.time())}"
+                secret_key = f"{secret_key}:{int(time.time())}"
                 self._authenticator = SessionAuthAuthenticator(users, secret_key)
                 self._logger.log_info("认证模块已启用: Session 表单登录（每次启动需重新登录）")
             else:
@@ -656,7 +657,7 @@ class ClientHandler:
 
         # ---- 管理面板页面 ----
         elif result_type == "admin_page":
-            return self._handle_admin_page(request, dispatch_result)
+            return self._handle_admin_page(request, dispatch_result, auth_result)
 
         # ---- 管理面板操作 (删除文件等) ----
         elif result_type == "admin_action":
@@ -764,8 +765,6 @@ class ClientHandler:
         - get_info: 返回当前登录用户的用户名和密码
         - change_password: 修改当前登录用户的密码
         """
-        import json as json_module
-
         session_token = request.get_cookie("session_token", "")
 
         # 读取 session 中的用户名
@@ -774,7 +773,7 @@ class ClientHandler:
             username = self._authenticator.validate_session(session_token)
 
         if not username:
-            body = json_module.dumps({"ok": False, "error": "未登录"}).encode("utf-8")
+            body = json.dumps({"ok": False, "error": "未登录"}).encode("utf-8")
             resp = HttpResponse(401, body=body)
             resp.set_header("Content-Type", "application/json; charset=utf-8")
             return resp
@@ -787,7 +786,7 @@ class ClientHandler:
             auth_config = self._config.get("authentication", {})
             users = auth_config.get("users", {})
             password = users.get(username, "")
-            body = json_module.dumps({
+            body = json.dumps({
                 "ok": True,
                 "username": username,
                 "password": password,
@@ -802,14 +801,14 @@ class ClientHandler:
             new_password = params.get("new_password", "")
 
             if not old_password or not new_password:
-                body = json_module.dumps({"ok": False, "error": "密码不能为空"}).encode("utf-8")
+                body = json.dumps({"ok": False, "error": "密码不能为空"}).encode("utf-8")
                 resp = HttpResponse(400, body=body)
                 resp.set_header("Content-Type", "application/json; charset=utf-8")
                 return resp
 
             # 验证旧密码
             if not self._authenticator or not self._authenticator.verify_credentials(username, old_password):
-                body = json_module.dumps({"ok": False, "error": "原密码错误"}).encode("utf-8")
+                body = json.dumps({"ok": False, "error": "原密码错误"}).encode("utf-8")
                 resp = HttpResponse(200, body=body)
                 resp.set_header("Content-Type", "application/json; charset=utf-8")
                 return resp
@@ -824,13 +823,13 @@ class ClientHandler:
                 self._authenticator._users[username] = new_password
 
             self._logger.log_info(f"用户 '{username}' 修改了密码 [IP: {self._client_ip}]")
-            body = json_module.dumps({"ok": True, "message": "密码修改成功"}).encode("utf-8")
+            body = json.dumps({"ok": True, "message": "密码修改成功"}).encode("utf-8")
             resp = HttpResponse(200, body=body)
             resp.set_header("Content-Type", "application/json; charset=utf-8")
             return resp
 
         else:
-            body = json_module.dumps({"ok": False, "error": "未知操作"}).encode("utf-8")
+            body = json.dumps({"ok": False, "error": "未知操作"}).encode("utf-8")
             resp = HttpResponse(400, body=body)
             resp.set_header("Content-Type", "application/json; charset=utf-8")
             return resp
@@ -901,8 +900,7 @@ class ClientHandler:
                     )
 
                 # 生成唯一文件名
-                import time as time_module
-                filename = f"upload_{int(time_module.time())}.bin"
+                filename = f"upload_{int(time.time())}.bin"
                 save_path = os.path.join(self._upload_dir, filename)
 
                 with open(save_path, "wb") as f:
@@ -941,7 +939,7 @@ class ClientHandler:
         self._logger.log_info(f"用户注销 [IP: {self._client_ip}]")
         return self._response_builder.build_post_response("logout", {})
 
-    def _handle_admin_page(self, request, dispatch_result: DispatchResult) -> HttpResponse:
+    def _handle_admin_page(self, request, dispatch_result: DispatchResult, auth_result: AuthResult) -> HttpResponse:
         """
         处理管理面板页面请求。
 
@@ -950,6 +948,7 @@ class ClientHandler:
         参数:
             request: HttpRequest 对象
             dispatch_result: 路由分发结果（type="admin_page"）
+            auth_result: 认证结果（用于提取真实用户名）
 
         返回:
             HttpResponse
@@ -958,8 +957,7 @@ class ClientHandler:
             return self._response_builder.build_error(500, "管理面板未初始化")
 
         section = dispatch_result.extra.get("section", "dashboard")
-        # 从 auth cookie 或 query 参数中提取用户名（用于页面显示）
-        username = request.get_cookie("session_token", "") or "管理员"
+        username = auth_result.username or "管理员"
 
         if section == "dashboard":
             html = self._admin_panel.render_dashboard(username)
@@ -1034,6 +1032,10 @@ class ClientHandler:
                     )
                 except OSError as e:
                     self._logger.log_error(f"管理面板: 删除文件失败 {safe_name}: {e}")
+            else:
+                self._logger.log_error(
+                    f"管理面板: 删除失败，文件不存在: {safe_name}"
+                )
 
             return self._response_builder.build_redirect("/admin/files")
 
@@ -1119,10 +1121,7 @@ class ClientHandler:
             if ext not in executable_extensions:
                 return self._response_builder.build_error(400, f"不支持运行此文件类型: {ext}")
 
-            import subprocess
-            import time as time_module
-
-            # 最大执行时间 10 秒，防止死循环
+            # 最大执行时间 60 秒，防止死循环
             timeout = 60
 
             exit_msg = ""
@@ -1332,8 +1331,7 @@ class ClientHandler:
 
         # 空文件名处理
         if not filename:
-            import time as time_module
-            filename = f"upload_{int(time_module.time())}"
+            filename = f"upload_{int(time.time())}"
 
         # 截断过长文件名（保留扩展名）
         max_name_len = 200
@@ -1410,18 +1408,9 @@ def main():
         script_dir = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.join(script_dir, config_path)
 
-    # 端口优先级: 环境变量 PORT（云平台） > 命令行 --port > 配置文件
-    override_port = args.port
-    env_port = os.environ.get("PORT")
-    if env_port:
-        try:
-            override_port = int(env_port)
-        except ValueError:
-            pass
-
     # 创建并启动服务器
     server = SimpleWebServer(config_path)
-    server.load_config(override_port=override_port)
+    server.load_config(override_port=args.port)
     server._init_modules()
     server.start()
 

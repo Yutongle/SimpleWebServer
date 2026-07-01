@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
-from urllib.parse import unquote
+from urllib.parse import unquote, parse_qs
 
 
 # ============================================================================
@@ -96,18 +96,7 @@ class HttpRequest:
         - application/x-www-form-urlencoded: key=value&key2=value2
         - 其他格式返回空字符串（可扩展支持 multipart/form-data）
         """
-        content_type = self.get_header("content-type", "")
-        if "application/x-www-form-urlencoded" in content_type:
-            try:
-                body_str = self.body.decode("utf-8", errors="replace")
-                for pair in body_str.split("&"):
-                    if "=" in pair:
-                        key, value = pair.split("=", 1)
-                        if unquote(key) == name:
-                            return unquote(value)
-            except Exception:
-                pass
-        return default
+        return self.get_all_post_params().get(name, default)
 
     def get_all_post_params(self) -> dict:
         """
@@ -115,19 +104,53 @@ class HttpRequest:
 
         仅处理 application/x-www-form-urlencoded 格式。
         对于 multipart/form-data 文件上传，在 router.py 中单独处理。
+
+        编码处理: HTML5 规定表单默认使用 UTF-8，但部分浏览器可能使用
+        系统编码（如 GBK）。本方法使用 parse_qs 在字节层面处理 URL 解码，
+        然后依次尝试 UTF-8 和常见编码来解码参数值。
         """
         params = {}
         content_type = self.get_header("content-type", "")
         if "application/x-www-form-urlencoded" in content_type and self.body:
             try:
-                body_str = self.body.decode("utf-8", errors="replace")
-                for pair in body_str.split("&"):
-                    if "=" in pair:
-                        key, value = pair.split("=", 1)
-                        params[unquote(key)] = unquote(value)
+                raw_params = parse_qs(self.body, keep_blank_values=True)
+                for key_bytes, value_list in raw_params.items():
+                    key = key_bytes.decode("utf-8", errors="replace")
+                    raw_value = value_list[0] if value_list else b""
+                    value = self._decode_param_value(raw_value)
+                    params[key] = value
             except Exception:
                 pass
         return params
+
+    @staticmethod
+    def _decode_param_value(raw: bytes) -> str:
+        """
+        将 URL 解码后的原始字节转换为字符串。
+
+        依次尝试 UTF-8（HTML5 标准）和 GBK/GB2312（中文 Windows 系统编码）。
+        如果都失败，使用 UTF-8 替换模式。
+
+        参数:
+            raw: parse_qs 返回的原始字节值
+
+        返回:
+            str: 解码后的字符串
+        """
+        # 尝试 UTF-8（现代浏览器默认编码）
+        try:
+            return raw.decode("utf-8")
+        except UnicodeDecodeError:
+            pass
+
+        # 尝试 GBK（中文 Windows 系统编码，部分旧浏览器可能使用）
+        try:
+            return raw.decode("gbk")
+        except UnicodeDecodeError:
+            pass
+
+        # 最后的回退：UTF-8 替换模式
+        return raw.decode("utf-8", errors="replace")
 
     @property
     def query_params(self) -> dict:

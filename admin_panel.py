@@ -305,6 +305,7 @@ class AdminPanel:
                             <a href="/admin/files/run?name={f_info['name']}"
                                class="btn-run">▶ 运行</a>
                             <form method="POST" action="/admin/files/delete"
+                                  accept-charset="UTF-8"
                                   style="display:inline;">
                                 <input type="hidden" name="filename" value="{f_info['name']}">
                                 <button type="submit" class="btn-delete"

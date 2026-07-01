@@ -77,6 +77,20 @@ class ContentType:
         ".zip": "application/zip",
         ".gz": "application/gzip",
         ".tar": "application/x-tar",
+        ".doc": "application/msword",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".xls": "application/vnd.ms-excel",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".ppt": "application/vnd.ms-powerpoint",
+        ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+
+        # 代码/脚本文件
+        ".py": "text/plain; charset=utf-8",
+        ".bat": "text/plain; charset=utf-8",
+        ".cmd": "text/plain; charset=utf-8",
+        ".sh": "text/plain; charset=utf-8",
+        ".ini": "text/plain; charset=utf-8",
+        ".cfg": "text/plain; charset=utf-8",
 
         # 字体类型
         ".woff": "font/woff",

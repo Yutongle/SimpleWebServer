@@ -100,9 +100,10 @@ class AccessLogger:
         print(log_line)
 
         # 写入内存环形缓冲区
-        self._log_buffer.append(log_line)
-        if len(self._log_buffer) > self._max_buffer_lines:
-            self._log_buffer = self._log_buffer[-self._max_buffer_lines:]
+        with self._lock:
+            self._log_buffer.append(log_line)
+            if len(self._log_buffer) > self._max_buffer_lines:
+                self._log_buffer = self._log_buffer[-self._max_buffer_lines:]
 
         # 同时写入日志文件
         if self._file_handle:
