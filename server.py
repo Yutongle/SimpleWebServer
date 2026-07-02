@@ -95,6 +95,10 @@ DEFAULT_CONFIG = {
         "log_file": None,
         "format": "common",
     },
+    "tunnel": {
+        "enabled": True,
+        "config_file": "tunnel-config.yml",
+    },
 }
 
 
@@ -1381,6 +1385,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="监听端口 (默认: 8080, 覆盖配置文件)",
     )
+    parser.add_argument(
+        "--no-tunnel",
+        action="store_true",
+        help="禁用 Cloudflare Tunnel 自动启动",
+    )
     return parser.parse_args()
 
 
@@ -1397,22 +1406,60 @@ def main():
     2. 创建服务器实例
     3. 加载配置
     4. 初始化模块
-    5. 启动服务器
+    5. 启动 Cloudflare Tunnel（默认启用）
+    6. 启动服务器
     """
     args = parse_args()
 
     # 确定配置文件路径（相对于当前工作目录）
     config_path = args.config
     if not os.path.isabs(config_path):
-        # 默认在服务器脚本所在目录寻找配置文件
         script_dir = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.join(script_dir, config_path)
 
     # 创建并启动服务器
     server = SimpleWebServer(config_path)
     server.load_config(override_port=args.port)
+
+    # 启动 Cloudflare Tunnel（如果启用）
+    tunnel_proc = None
+    if not args.no_tunnel:
+        tunnel_config = server._config.get("tunnel", {})
+        if tunnel_config.get("enabled", True):
+            tunnel_file = tunnel_config.get("config_file", "tunnel-config.yml")
+            if not os.path.isabs(tunnel_file):
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                tunnel_file = os.path.join(script_dir, tunnel_file)
+
+            cloudflared_exe = os.path.join(script_dir, "cloudflared.exe")
+            if os.path.isfile(cloudflared_exe) and os.path.isfile(tunnel_file):
+                try:
+                    tunnel_proc = subprocess.Popen(
+                        [cloudflared_exe, "tunnel", "--config", tunnel_file, "run"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        creationflags=subprocess.CREATE_NO_WINDOW,
+                    )
+                    print(f"[Tunnel] Cloudflare Tunnel 已启动 (PID: {tunnel_proc.pid})")
+                except OSError as e:
+                    print(f"[Tunnel] 启动失败: {e}")
+            else:
+                if not os.path.isfile(cloudflared_exe):
+                    print(f"[Tunnel] 未找到 cloudflared.exe，跳过")
+                if not os.path.isfile(tunnel_file):
+                    print(f"[Tunnel] 未找到隧道配置文件 {tunnel_file}，跳过")
+
     server._init_modules()
-    server.start()
+    try:
+        server.start()
+    finally:
+        if tunnel_proc:
+            tunnel_proc.terminate()
+            try:
+                tunnel_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                tunnel_proc.kill()
+            print("[Tunnel] Cloudflare Tunnel 已关闭")
 
 
 if __name__ == "__main__":
