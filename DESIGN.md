@@ -38,11 +38,15 @@
 │                      SimpleWebServer                        │
 │                                                             │
 │  ┌──────────┐    ┌──────────┐    ┌──────────────────────┐  │
-│  │ config   │    │  main()  │    │  SimpleWebServer     │  │
-│  │ .json    │───▶│  入口    │───▶│  ├─ load_config()    │  │
+│  │ DEFAULT  │    │  main()  │    │  SimpleWebServer     │  │
+│  │ _CONFIG  │───▶│  入口    │───▶│  ├─ load_config()    │  │
 │  └──────────┘    └──────────┘    │  ├─ _init_modules() │  │
 │                                  │  └─ start()         │  │
 │                                  └─────────┬────────────┘  │
+│                                  ┌─────────┴────────────┐  │
+│                                  │  cloudflared.exe     │  │
+│                                  │  (Tunnel 自动启动)   │  │
+│                                  └──────────────────────┘  │
 │                                            │               │
 │                            ThreadPoolExecutor              │
 │                          ┌────────┼────────┐               │
@@ -55,14 +59,15 @@
 │               │          │          │                      │
 │               ▼          ▼          ▼                      │
 │         HttpRequest  DispatchResult  HttpResponse           │
-│                                            │               │
-│                                     ┌──────┴──────┐       │
-│                                     ▼             ▼       │
-│                               Auth.auth()   ErrorHandler   │
-│                                     │             │       │
-│                                     ▼             ▼       │
-│                                AuthResult    Error Pages    │
-│                                                             │
+│                                        │                   │
+│                         ┌──────────────┼──────────────┐    │
+│                         ▼              ▼              ▼    │
+│                    Auth.auth()   AdminPanel    ErrorHandler │
+│                         │              │              │    │
+│                         ▼              ▼              ▼    │
+│                    AuthResult   Dashboard/Logs   ErrorPages │
+│                                 /Files                     │
+│                         ServerStats.log_request()           │
 │                         Logger.log()                        │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -72,6 +77,10 @@
 一个完整的 HTTP 请求处理周期包含以下步骤：
 
 ```
+步骤 0: main() — 启动前准备
+        └── 启动 cloudflared.exe 隧道进程（默认启用）
+        └── 可用 --no-tunnel 参数禁用
+
 步骤 1: socket.accept()
         └── 接受 TCP 连接
 
@@ -94,23 +103,26 @@
         └── Session Auth: 从 Cookie 验证 token
 
 步骤 6: Router.dispatch(request, auth_result) → DispatchResult
-        ├── 特殊路径匹配 (/login, /logout, /upload)
+        ├── 特殊路径匹配 (/login, /logout, /upload, /account)
+        ├── Admin 路由匹配 (/admin, /admin/logs, /admin/files, /admin/files/delete, /admin/files/view, /admin/files/run)
         ├── 安全检查 (路径遍历防御)
         ├── 认证检查 (protected_paths)
         ├── 静态文件映射
         └── 方法验证
 
-步骤 7: ResponseBuilder.build(dispatch_result) → HttpResponse
+步骤 7: ResponseBuilder / AdminPanel → HttpResponse
         ├── file → build_file_response()
         ├── error → build_error()
         ├── redirect → build_redirect()
-        └── post_upload → build_post_response()
+        ├── post_upload → build_post_response()
+        ├── admin_page → AdminPanel.render_dashboard() / render_logs() / render_files()
+        └── admin_action → 删除文件 / 查看文件 / 运行文件
 
 步骤 8: socket.sendall(response.to_bytes())
         └── 序列化并发送响应
 
-步骤 9: Logger.log(request, response)
-        └── 写入 Common Log Format 日志
+步骤 9: ServerStats.increment_request() + Logger.log(request, response)
+        └── 更新统计计数 + 写入 Common Log Format 日志
 
 步骤 10: socket.close()
         └── 关闭 TCP 连接
@@ -295,6 +307,59 @@ token = base64(username + ":" + expiry_timestamp + ":" + hmac_signature)
 - URL 编码绕过: `/%2e%2e%2f%2e%2e%2f`
 - 符号链接绕过: 静态目录下放置指向外部的符号链接
 
+### 3.5 管理面板模块 (`admin_panel.py`)
+
+管理面板采用服务端渲染 (Server-Side Rendering)，直接在服务器端生成 HTML 页面返回给浏览器。
+
+#### 3.5.1 功能架构
+
+```
+                     /admin/ (仪表盘)
+                     ├── 服务器状态概览
+                     ├── 请求统计 (总请求、成功、失败)
+                     ├── 在线用户信息
+                     └── 1 秒自动刷新
+
+                     /admin/logs (日志查看)
+                     ├── 从内存环形缓冲区读取
+                     ├── 支持 50/100/200/500 行选择
+                     └── 实时查看最近的访问日志
+
+                     /admin/files (文件管理)
+                     ├── 文件列表 (名称、大小、修改时间)
+                     ├── 文件上传表单
+                     ├── 文件查看 (自动 UTF-8/GBK 编码检测)
+                     ├── 文件运行 (.exe 新窗口启动, .py 捕获输出)
+                     └── 文件删除 (POST 表单提交)
+```
+
+#### 3.5.2 ServerStats 设计
+
+请求统计使用 `threading.Lock` 保护，记录:
+- 总请求数 / 成功请求数 / 失败请求数
+- 服务器启动时间
+- 管理员请求 (`/admin/*`) 不计入统计，避免自动刷新污染数据
+
+### 3.6 Cloudflare Tunnel 集成
+
+服务器在启动时自动启动 `cloudflared.exe` 隧道进程:
+
+```
+main()
+  ├── SimpleWebServer.load_config()
+  ├── 启动 cloudflared.exe (subprocess.Popen)  ← 默认启用
+  ├── _init_modules()
+  └── start()
+       ├── accept() 循环
+       └── (Ctrl+C) → finally: cloudflared.terminate()
+```
+
+可通过 `--no-tunnel` 命令行参数禁用隧道启动。隧道配置文件 `tunnel-config.yml` 指定域名和本地服务的映射关系。
+
+### 3.7 POST 表单编码兼容
+
+为解决中文 Windows 环境下浏览器可能以 GBK 而非 UTF-8 编码提交表单的问题，`http_parser.py` 的 `get_all_post_params()` 方法使用 `parse_qs` 在字节层面进行 URL 解码，然后依次尝试 UTF-8（HTML5 标准）→ GBK（中文 Windows 系统编码）来解码参数值:
+
 ---
 
 ## 4. 并发模型
@@ -343,7 +408,9 @@ token = base64(username + ":" + expiry_timestamp + ":" + hmac_signature)
 | ErrorHandler | 只读缓存 + 线程安全的首次写入 |
 | ResponseBuilder | 无状态（通过参数传递所有数据） |
 | Auth | `threading.Lock` 保护 session 存储 |
-| Logger | `threading.Lock` 保护文件写入 |
+| Logger | `threading.Lock` 保护文件写入和缓冲区操作 |
+| ServerStats | `threading.Lock` 保护请求计数和统计 |
+| AdminPanel | 无状态，所有数据通过参数传递 |
 
 ---
 
@@ -364,7 +431,7 @@ token = base64(username + ":" + expiry_timestamp + ":" + hmac_signature)
 
 ### 5.2 配置中的密钥管理
 
-生产环境中，`config.json` 中的 `secret_key` 必须更换为随机生成的字符串：
+生产环境中，`DEFAULT_CONFIG` 中的 `secret_key` 必须更换为随机生成的字符串：
 
 ```python
 import secrets
@@ -426,27 +493,37 @@ wait
 
 ### 7.2 测试覆盖范围
 
+详见 `tests/test_plan.md`，共 24 个测试用例 (T01-T24)，覆盖以下模块:
+
 | 模块 | 测试重点 |
 |------|----------|
 | http_parser | 正常请求、边界请求行长度、缺失 Host 头、非法方法 |
 | router | 路径遍历、文件存在性、权限检查、认证路径匹配 |
 | auth | 正确凭据、错误凭据、过期 token、伪造 token、注销 |
 | error_handler | 自定义页面加载、缓存、默认页面生成 |
-| server | GET/POST、重定向、错误响应、并发、超时 |
+| admin_panel | 仪表盘渲染、日志查询、文件列表、文件查看/运行/删除 |
+| server | GET/POST、重定向、错误响应、并发、超时、Tunnel 启动 |
 
 ---
 
 ## 8. 扩展与改进
 
-### 8.1 短期改进
+### 8.1 已完成改进 (当前版本)
+
+1. ✅ **管理面板**: 仪表盘、日志查看、文件管理 (查看/运行/删除)
+2. ✅ **公网部署**: Cloudflare Tunnel 自动启动，支持自定义域名
+3. ✅ **中文编码兼容**: POST 表单参数 UTF-8/GBK 自动识别
+4. ✅ **文件内容识别**: 自动检测 UTF-8/GBK 编码预览文本文件
+5. ✅ **MIME 类型扩展**: Python 脚本、Office 文档、字体等
+
+### 8.2 短期改进
 
 1. **密码哈希**: 使用 `bcrypt` 或 `argon2` 替代明文存储
-2. **分块传输**: 完整的 `Transfer-Encoding: chunked` 支持
-3. **Keep-Alive**: HTTP 持久连接减少握手开销
-4. **HTTPS**: 使用 `ssl` 标准库添加 TLS 支持
-5. **Range 请求**: 支持断点续传
+2. **Keep-Alive**: HTTP 持久连接减少握手开销
+3. **HTTPS**: 使用 `ssl` 标准库添加 TLS 支持
+4. **Range 请求**: 支持断点续传
 
-### 8.2 长期改进
+### 8.3 长期改进
 
 1. **CGI/FastCGI**: 支持动态内容生成
 2. **反向代理**: 转发请求到后端应用服务器
